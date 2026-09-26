@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI, HTTPException, status
 
@@ -12,9 +13,7 @@ from .service import NotificationService
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    from .models import Notification
-
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     Base.metadata.create_all(bind=engine)
 
     connection = await connect_rabbitmq()

@@ -1,9 +1,9 @@
 fastapi
-sqlalchemy
-psycopg2-binary
-uvicorn[standard]
-pydantic
+email-validator
+httpx
+PyJWT[crypto]
 pydantic-settings
+uvicorn
 ruff>=0.13,<0.14
 mypy>=1.18,<2.0
 pre-commit>=4.3,<5.0

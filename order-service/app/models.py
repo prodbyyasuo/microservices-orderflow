@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import String, DateTime, func, ForeignKey
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -26,10 +26,7 @@ class Order(Base):
         server_default=func.now(),
         nullable=False,
     )
-    items: Mapped[list["OrderItem"]] = relationship(
-        "OrderItem",
-        back_populates="order"
-    )
+    items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order")
 
 
 class OrderItem(Base):

@@ -1,8 +1,7 @@
 import json
 
-from aio_pika.abc import AbstractRobustConnection, AbstractChannel, AbstractExchange
-
 import aio_pika
+from aio_pika.abc import AbstractChannel, AbstractExchange, AbstractRobustConnection
 
 
 async def connect_rabbitmq(url: str) -> AbstractRobustConnection:

@@ -2,9 +2,9 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from .api_clients import CatalogClient, PaymentClient
+from .config import settings
 from .database import get_db
 from .service import OrderService
-from .config import settings
 
 
 def get_catalog_client() -> CatalogClient:

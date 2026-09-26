@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -11,6 +11,7 @@ class Base(DeclarativeBase):
         primary_key=True,
         default=lambda: str(uuid4()),
     )
+
 
 class User(Base):
     __tablename__ = "users"

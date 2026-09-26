@@ -15,7 +15,7 @@ class Base(DeclarativeBase):
 
 
 class Product(Base):
-    __tablename__ = 'products'
+    __tablename__ = "products"
 
     name: Mapped[str]
     description: Mapped[str]

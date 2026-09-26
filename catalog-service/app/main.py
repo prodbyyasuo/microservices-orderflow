@@ -1,19 +1,17 @@
 from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .config import settings
 from .database import engine, get_db
 from .models import Base, Product
 from .schemas import ProductCreate, ProductRead
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    from .models import Product
-
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     Base.metadata.create_all(bind=engine)
     yield
 

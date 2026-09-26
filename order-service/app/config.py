@@ -4,9 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = (
-        "postgresql+psycopg2://orders:orders@localhost:5434/orders"
-    )
+    database_url: str = "postgresql+psycopg2://orders:orders@localhost:5434/orders"
     catalog_service_url: str = "http://127.0.0.1:8001"
     payment_service_url: str = "http://127.0.0.1:8003"
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672"
@@ -16,6 +14,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
 
 class NotFoundError(Exception):
     pass

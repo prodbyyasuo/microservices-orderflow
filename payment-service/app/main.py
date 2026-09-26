@@ -1,25 +1,27 @@
 from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 
 from .config import NotFoundError, settings
 from .database import engine
+from .dependencies import get_payment_service
 from .models import Base
+from .rabbitmq import connect_rabbitmq, declare_payment_exchange
 from .schemas import PaymentCreateSchema, PaymentReadSchema
 from .service import PaymentService
-from .dependencies import get_payment_service
-from .rabbitmq import declare_payment_exchange, connect_rabbitmq
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    from .models import PaymentORM
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as database_connection:
         await database_connection.run_sync(Base.metadata.create_all)
 
     rabbitmq_connection = await connect_rabbitmq(url=settings.rabbitmq_url)
     channel = await rabbitmq_connection.channel()
-    app.state.payment_exchange = await declare_payment_exchange(channel, settings.payment_exchange_name)
+    app.state.payment_exchange = await declare_payment_exchange(
+        channel, settings.payment_exchange_name
+    )
 
     try:
         yield
@@ -32,8 +34,7 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/payments/{payment_id}", response_model=PaymentReadSchema)
 async def get_payment(
-        payment_id: str,
-        payment_service: PaymentService = Depends(get_payment_service)
+    payment_id: str, payment_service: PaymentService = Depends(get_payment_service)
 ):
     try:
         return await payment_service.get(payment_id)
@@ -45,17 +46,15 @@ async def get_payment(
 
 
 @app.get("/payments", response_model=list[PaymentReadSchema])
-async def get_payments(
-        payment_service: PaymentService = Depends(get_payment_service)
-):
+async def get_payments(payment_service: PaymentService = Depends(get_payment_service)):
     return await payment_service.get_all()
 
 
 @app.post("/payments", response_model=PaymentReadSchema)
 async def create_payment(
-        request: Request,
-        payload: PaymentCreateSchema,
-        payment_service: PaymentService = Depends(get_payment_service),
+    request: Request,
+    payload: PaymentCreateSchema,
+    payment_service: PaymentService = Depends(get_payment_service),
 ):
     payment = await payment_service.create(payload)
 

@@ -1,0 +1,220 @@
+name: orderflow
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      api-gateway:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ../frontend
+    expose:
+      - "80"
+
+  api-gateway:
+    build:
+      context: ../api-gateway
+    environment:
+      CATALOG_SERVICE_URL: http://catalog-service:8000
+      ORDER_SERVICE_URL: http://order-service:8000
+      AUTH_SERVICE_URL: http://auth-service:8000
+      JWT_SECRET: ${JWT_SECRET:-orderflow-local-jwt-secret-change-me}
+      JWT_ALGORITHM: HS256
+    expose:
+      - "8000"
+    depends_on:
+      catalog-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+
+  auth-service:
+    build:
+      context: ../auth-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://auth:auth@auth-db:5432/auth
+      JWT_SECRET: ${JWT_SECRET:-orderflow-local-jwt-secret-change-me}
+      JWT_ALGORITHM: HS256
+    expose:
+      - "8000"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+
+  catalog-service:
+    build:
+      context: ../catalog-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://catalog:catalog@catalog-db:5432/catalog
+    expose:
+      - "8000"
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+
+  order-service:
+    build:
+      context: ../order-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://orders:orders@order-db:5432/orders
+      CATALOG_SERVICE_URL: http://catalog-service:8000
+      PAYMENT_SERVICE_URL: http://payment-service:8000
+      RABBITMQ_URL: amqp://orderflow:orderflow@rabbitmq:5672/
+      PAYMENT_EXCHANGE_NAME: payment.events
+      PAYMENT_QUEUE_NAME: payment.results
+      PAYMENT_SUCCEEDED_ROUTING_KEY: payment.succeeded
+    expose:
+      - "8000"
+    depends_on:
+      order-db:
+        condition: service_healthy
+      catalog-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: ../payment-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://payments:payments@payment-db:5432/payments
+      RABBITMQ_URL: amqp://orderflow:orderflow@rabbitmq:5672/
+      PAYMENT_EXCHANGE_NAME: payment.events
+      PAYMENT_SUCCEEDED_ROUTING_KEY: payment.succeeded
+    expose:
+      - "8000"
+    depends_on:
+      payment-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: ../notification-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://notifications:notifications@notification-db:5432/notifications
+      RABBITMQ_URL: amqp://orderflow:orderflow@rabbitmq:5672/
+      PAYMENT_EXCHANGE_NAME: payment.events
+      PAYMENT_QUEUE_NAME: notification.payments
+      PAYMENT_SUCCEEDED_ROUTING_KEY: payment.succeeded
+    expose:
+      - "8000"
+    depends_on:
+      notification-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  catalog-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: catalog
+      POSTGRES_USER: catalog
+      POSTGRES_PASSWORD: catalog
+    expose:
+      - "5432"
+    volumes:
+      - catalog-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog -d catalog"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  order-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: orders
+    expose:
+      - "5432"
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders -d orders"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  payment-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: payments
+      POSTGRES_PASSWORD: payments
+    expose:
+      - "5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payments -d payments"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  notification-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notifications
+      POSTGRES_USER: notifications
+      POSTGRES_PASSWORD: notifications
+    expose:
+      - "5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifications -d notifications"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+    expose:
+      - "5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: orderflow
+      RABBITMQ_DEFAULT_PASS: orderflow
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  catalog-db-data:
+  order-db-data:
+  payment-db-data:
+  notification-db-data:
+  auth-db-data:

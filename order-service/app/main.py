@@ -1,20 +1,19 @@
 from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI, HTTPException, status
 
 from .config import NotFoundError
 from .database import engine
+from .dependencies import get_order_service
 from .models import Base
+from .rabbitmq import connect_rabbitmq, start_payments_consume
 from .schemas import OrderCreateSchema, OrderReadSchema
 from .service import OrderService
-from .dependencies import get_order_service
-from .rabbitmq import connect_rabbitmq, start_payments_consume
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    from .models import OrderItem, Order
-
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     Base.metadata.create_all(bind=engine)
 
     connection = await connect_rabbitmq()

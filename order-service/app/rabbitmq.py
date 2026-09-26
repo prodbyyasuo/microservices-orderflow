@@ -1,11 +1,15 @@
 import json
 
 import aio_pika
-from aio_pika.abc import AbstractConnection, AbstractRobustConnection, AbstractIncomingMessage
+from aio_pika.abc import (
+    AbstractConnection,
+    AbstractIncomingMessage,
+    AbstractRobustConnection,
+)
 
-from .models import Order
 from .config import settings
 from .database import SessionLocal
+from .models import Order
 
 
 async def connect_rabbitmq() -> AbstractRobustConnection:
@@ -14,12 +18,12 @@ async def connect_rabbitmq() -> AbstractRobustConnection:
 
 async def handle_payment_events(message: AbstractIncomingMessage):
     async with message.process():
-        event = json.loads(message.body.decode('utf-8'))
+        event = json.loads(message.body.decode("utf-8"))
         with SessionLocal() as session:
-            order = session.get(Order, event['order_id'])
+            order = session.get(Order, event["order_id"])
             if order is None:
                 return
-            order.status = 'paid'
+            order.status = "paid"
             session.commit()
 
 
