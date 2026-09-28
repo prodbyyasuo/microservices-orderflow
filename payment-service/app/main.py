@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+from aiokafka import AIOKafkaProducer
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 
 from .config import NotFoundError, settings
 from .database import engine
 from .dependencies import get_payment_service
+from .kafka import create_kafka_producer
 from .models import Base
 from .rabbitmq import connect_rabbitmq, declare_payment_exchange
 from .schemas import PaymentCreateSchema, PaymentReadSchema
@@ -23,9 +25,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         channel, settings.payment_exchange_name
     )
 
+    kafka_producer: AIOKafkaProducer = create_kafka_producer()
+    await kafka_producer.start()
+    app.state.kafka_producer = kafka_producer
+
     try:
         yield
     finally:
+        await kafka_producer.stop()
         await rabbitmq_connection.close()
 
 
@@ -63,4 +70,5 @@ async def create_payment(
         order_id=payload.order_id,
         amount=payload.amount,
         exchange=request.app.state.payment_exchange,
+        kafka_producer=request.app.state.kafka_producer,
     )
