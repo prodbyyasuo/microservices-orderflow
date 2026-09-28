@@ -1,0 +1,5 @@
+aiokafka
+fastapi
+pydantic-settings
+pymongo
+uvicorn[standard]

@@ -1,0 +1,41 @@
+name: orderflow
+
+services:
+  analytic-service:
+    build:
+      context: ../analytic-service
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      KAFKA_TOPIC: payment-events
+      MONGODB_URL: mongodb://analytics:${MONGODB_PASSWORD}@mongodb:27017/
+      MONGODB_DATABASE: analytics
+      MONGODB_COLLECTION: events
+    ports:
+      - "${ANALYTIC_SERVICE_PORT:-8005}:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+
+  mongodb:
+    image: mongo:8.0
+    attach: false
+    command: ["--quiet"]
+    logging:
+      driver: "none"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: analytics
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+    expose:
+      - "27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--username", "analytics", "--password", "${MONGODB_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mongodb-data:
