@@ -67,8 +67,7 @@ async def create_payment(
 
     return await payment_service.complete_payment(
         payment,
-        order_id=payload.order_id,
-        amount=payload.amount,
+        user_id=payload.user_id,
         exchange=request.app.state.payment_exchange,
         kafka_producer=request.app.state.kafka_producer,
     )

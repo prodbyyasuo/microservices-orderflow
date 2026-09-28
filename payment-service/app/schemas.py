@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict
 
 class PaymentCreateSchema(BaseModel):
     order_id: str
+    user_id: str
     amount: int
 
 
